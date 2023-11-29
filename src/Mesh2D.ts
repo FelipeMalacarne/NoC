@@ -1,13 +1,16 @@
-import { Coordinate, Node2D } from "./Types";
-
-
+import Processor from "./MPsoCComp/Processor";
+import Router from "./MPsoCComp/Router";
+import { Node2D, Task } from "./Types";
 
 class Mesh2D {
 
     private sizeX: number;
+
     private sizeY: number;
 
     private nodes: Node2D[][] = [];
+
+    private tasks: Task[] = [];
 
     constructor(sizeX: number, sizeY: number) {
         this.sizeX = sizeX;
@@ -16,11 +19,11 @@ class Mesh2D {
     }
 
     private initNodes() {
-        // Step 1: Create all nodes
         for (let x = 0; x < this.sizeX; x++) {
             this.nodes[x] = [];
             for (let y = 0; y < this.sizeY; y++) {
                 this.nodes[x][y] = this.createNode(x, y);
+
             }
         }
 
@@ -35,17 +38,21 @@ class Mesh2D {
         }
     }
 
+
     private createNode(x: number, y: number) {
-        return {
+        let newNode: Node2D = {
             id: x * this.sizeY + y,
             up: null,
             left: null,
             right: null,
             down: null,
-            message: null
-            // router: new Router(),
-            // processor: new Processor()
+            message: null,
+            router: null,
+            processor: null
         };
+        newNode.router = new Router(newNode);
+        newNode.processor = new Processor(newNode);
+        return newNode;
     }
 
     public printNodes() {
@@ -54,7 +61,8 @@ class Mesh2D {
             let downLine = "";
             for (let x = 0; x < this.sizeX; x++) {
                 const node = this.nodes[x][y];
-                line += String(node.id).padEnd(2, ' ');
+                const task = this.tasks.find(task => task.location.x === x && task.location.y === y);
+                line += (task ? task.name : String(node.id)).padEnd(2, ' ');
                 if (node.right) {
                     line += "-";
                 } else {
@@ -80,8 +88,9 @@ class Mesh2D {
             let downLine = "";
             for (let x = 0; x < this.sizeX; x++) {
                 const node = this.nodes[x][y];
+                const task = this.tasks.find(task => task.location.x === x && task.location.y === y);
                 if (routeSet.has(node)) {
-                    line += String(node.id).padEnd(2, ' ');
+                    line += (task ? task.name : String(node.id)).padEnd(2, ' ');
                     if (node.right && routeSet.has(node.right)) {
                         line += "-";
                     } else {
@@ -107,17 +116,23 @@ class Mesh2D {
     public sendMessage(source: Node2D, target: Node2D, message: string) {
         const route = this.calculateRoute(source, target);
 
-        // traverse the message through the nodes via the route provided
+        if (route.length === 1) return;
+
+        source.processor!.startCommunication(target);
+
+        // Traverse the message through the nodes via the route provided
         for (let i = 0; i < route.length - 1; i++) {
-            const node = route[i];
+            const currentNode = route[i];
+            currentNode.router!.arbitrate(target);
             const nextNode = route[i + 1];
-            node.message = message;
-            console.log(`Node ${node.id} sends message to node ${nextNode.id}`);
+            currentNode.router!.sendMessage(nextNode); // Ensure router is not null
         }
 
-        console.log(`Node ${target.id} received message "${message}"`);
+        target.processor!.endCommunication(target); // Assuming processor is not null
+
         this.printRoute(route);
     }
+
 
     // BFS (breadth-first search) to find the shortest route
     private calculateRoute(source: Node2D, target: Node2D): Node2D[] {
@@ -174,6 +189,17 @@ class Mesh2D {
         return this.sizeY;
     }
 
+    public getTasks(): Task[] {
+        return this.tasks;
+    }
+
+    public getTask(x: number, y: number): Task | undefined {
+        return this.tasks.find(task => task.location.x === x && task.location.y === y);
+    }
+
+    public setTasks(tasks: Task[]) {
+        this.tasks = tasks;
+    }
 
 }
 

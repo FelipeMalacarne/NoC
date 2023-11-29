@@ -16,8 +16,17 @@ export interface Node2D {
     right: Node2D | null;
     down: Node2D | null;
     message: string | null;
-    // router: Router
-    // processor: Processor
+    router: Router | null;
+    processor: Processor | null;
 }
 
-export type Coordinate = [number, number];
+export type Coordinate = {
+    x: number,
+    y: number
+}
+
+export type Task = {
+    name: string,
+    location: Coordinate
+    target: Coordinate
+}
